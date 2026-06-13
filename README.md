@@ -87,9 +87,9 @@ ai-policy-tracker/
 
 ## Author
 
-Steven Hill — Purdue University MSAI Candidate | AI Ethics & Governance
+Steven Hill — Purdue University MSAI Candidate | AI Governance, Responsible AI & Adoption Enablement
 
-[LinkedIn](https://linkedin.com) | [GitHub](https://github.com/srhill12)
+[LinkedIn](https://linkedin.com/in/stevenrhill) | [GitHub](https://github.com/srhill12)
 
 ## References
 
