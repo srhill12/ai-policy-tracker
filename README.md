@@ -93,6 +93,12 @@ Steven Hill | AI Governance Professional | AIGP | ISO/IEC 42001 Lead Auditor
 
 - NIST (2023). *Artificial Intelligence Risk Management Framework (AI RMF 1.0)*, NIST AI 100-1. https://doi.org/10.6028/NIST.AI.100-1
 
+### Current
+
+- Executive Order 14179, *Removing Barriers to American Leadership in Artificial Intelligence* (January 23, 2025). https://www.federalregister.gov/documents/2025/01/31/2025-02172/removing-barriers-to-american-leadership-in-artificial-intelligence
+- OMB Memorandum M-25-21, *Accelerating Federal Use of AI through Innovation, Governance, and Public Trust* (April 3, 2025). https://www.whitehouse.gov/wp-content/uploads/2025/02/M-25-21-Accelerating-Federal-Use-of-AI-through-Innovation-Governance-and-Public-Trust.pdf
+- OMB Memorandum M-26-04, *Increasing Public Trust in Artificial Intelligence Through Unbiased AI Principles* (December 11, 2025). Implements the Unbiased AI Principles of Executive Order 14319, *Preventing Woke AI in the Federal Government* (July 23, 2025), for federal procurement of large language models. https://www.whitehouse.gov/wp-content/uploads/2025/12/M-26-04-Increasing-Public-Trust-in-Artificial-Intelligence-Through-Unbiased-AI-Principles-1.pdf
+
 ### Historical Context (No Longer in Effect)
 
 These instruments shaped earlier federal AI policy and may still appear in search results, but they are not current:
