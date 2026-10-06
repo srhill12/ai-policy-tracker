@@ -1,11 +1,18 @@
 import streamlit as st
+import html
 import json
 import os
 from datetime import datetime
 from dotenv import load_dotenv
 import anthropic
 
+from grounding import UNVERIFIED, VERIFIED, collect_search_results, ground_items
+
 load_dotenv()
+
+POLICY_TYPES = ["Executive Order", "Legislation", "Agency Guidance"]
+STATUSES = ["Active", "Proposed", "Passed", "Pending", "Revoked"]
+SIGNIFICANCE_LEVELS = ["High", "Medium", "Low"]
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -18,7 +25,6 @@ st.set_page_config(
 # ── Styling ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    .main { background-color: #f8f9fa; }
     .policy-card {
         background: white;
         border-radius: 10px;
@@ -51,6 +57,12 @@ st.markdown("""
     .badge-revoked  { background:#f0f0f0; color:#555; }
     .badge-passed   { background:#e8f0fe; color:#1a56a6; }
     .badge-pending  { background:#fff3cd; color:#856404; }
+    .badge-unverified { background:#fff3cd; color:#7a4b00; border:1px solid #e0a800; }
+    .badge-primary    { background:#e8f0fe; color:#1a56a6; }
+    .badge-secondary  { background:#f0f0f0; color:#555; }
+    .source-list { color: #444; font-size: 0.82em; margin-top: 8px; }
+    .source-list a { color: #1a56a6; }
+    .rejected-note { color: #a04000; font-size: 0.78em; margin-top: 6px; }
     .summary-text { color: #444; font-size: 0.93em; line-height: 1.6; margin-top: 10px; }
     .meta-text { color: #888; font-size: 0.82em; margin-top: 6px; }
     .report-box {
@@ -65,7 +77,6 @@ st.markdown("""
         white-space: pre-wrap;
     }
     .report-box * { color: #1a1a1a !important; }
-    h1, h2, h3 { color: #2E4057; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,8 +90,10 @@ if not api_key:
 client = anthropic.Anthropic(api_key=api_key)
 
 # ── Fetch policy data ─────────────────────────────────────────────────────────
+MAX_PAUSE_CONTINUATIONS = 3
+
 def fetch_policy_data():
-    prompt = """Search the web for the most current and significant US federal AI policy developments.
+    prompt = f"""Search the web for the most current and significant US federal AI policy developments.
 
 Find 12-16 items across these categories:
 - Executive Orders related to AI (including any recent ones signed or revoked)
@@ -90,30 +103,45 @@ Find 12-16 items across these categories:
 For each item return a JSON object. Respond ONLY with a valid JSON array: no markdown, no backticks, no preamble.
 
 Each object must have exactly these fields:
-{
+{{
   "title": "official title of the order, bill, or guidance document",
-  "type": one of ["Executive Order", "Legislation", "Agency Guidance"],
+  "type": one of {json.dumps(POLICY_TYPES)},
   "date": "YYYY-MM-DD or YYYY-MM if exact date unknown",
-  "status": one of ["Active", "Proposed", "Revoked", "Passed", "Pending"],
+  "status": one of {json.dumps(STATUSES)},
   "agency": "issuing agency or department name",
   "summary": "2-3 sentence plain English summary of what it does and why it matters for AI governance",
-  "significance": one of ["High", "Medium", "Low"],
-  "url": "direct URL to official source or best available source"
-}
+  "significance": one of {json.dumps(SIGNIFICANCE_LEVELS)},
+  "source_urls": ["1 to 3 URLs from your web search results that support this item"]
+}}
+
+Use "Revoked" for items that have been revoked, rescinded, repealed, or superseded and are no longer in effect.
+
+Rules for source_urls:
+- Copy each URL exactly, character for character, from a web search result you retrieved in this conversation.
+- Never construct, guess, shorten, or edit a URL. URLs not found in the search results will be discarded.
+- Prefer official government sources (.gov) when the search results include them.
+- If no search result supports an item, use an empty list.
 
 Prioritize accuracy and recency. Include the most impactful items first."""
 
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=4000,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[{"role": "user", "content": prompt}]
-    )
+    messages = [{"role": "user", "content": prompt}]
+    content_blocks = []
+    for _ in range(MAX_PAUSE_CONTINUATIONS + 1):
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=8000,
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=messages
+        )
+        content_blocks.extend(response.content)
+        if response.stop_reason != "pause_turn":
+            break
+        messages = [messages[0], {"role": "assistant", "content": content_blocks}]
 
     # Extract all text content from response blocks
     full_text = ""
-    for block in response.content:
-        if hasattr(block, "text") and block.text:
+    for block in content_blocks:
+        if getattr(block, "type", None) == "text" and block.text:
             full_text += block.text
 
     full_text = full_text.strip()
@@ -127,22 +155,29 @@ Prioritize accuracy and recency. Include the most impactful items first."""
 
     json_str = full_text[start:end+1]
     items = json.loads(json_str)
-    return items
+    return ground_items(items, collect_search_results(content_blocks))
 
 # ── Helper: badge HTML ────────────────────────────────────────────────────────
 def type_badge(t):
     cls = {"Executive Order": "badge-eo", "Legislation": "badge-leg",
            "Agency Guidance": "badge-guid"}.get(t, "badge-oth")
-    return f'<span class="badge {cls}">{t}</span>'
+    return f'<span class="badge {cls}">{html.escape(str(t))}</span>'
 
 def sig_badge(s):
     cls = {"High": "badge-high", "Medium": "badge-medium", "Low": "badge-low"}.get(s, "badge-oth")
-    return f'<span class="badge {cls}">⬤ {s} Significance</span>'
+    return f'<span class="badge {cls}">⬤ {html.escape(str(s))} Significance</span>'
 
 def status_badge(s):
     cls = {"Active": "badge-active", "Proposed": "badge-proposed", "Revoked": "badge-revoked",
            "Passed": "badge-passed", "Pending": "badge-pending"}.get(s, "badge-oth")
-    return f'<span class="badge {cls}">{s}</span>'
+    return f'<span class="badge {cls}">{html.escape(str(s))}</span>'
+
+def source_badge(item):
+    if item.get("verification") != VERIFIED:
+        return f'<span class="badge badge-unverified">⚠ {UNVERIFIED}: no source from search results</span>'
+    if item.get("source_type") == "primary":
+        return '<span class="badge badge-primary">Primary source</span>'
+    return '<span class="badge badge-secondary">Secondary source</span>'
 
 def card_class(t):
     return {"Executive Order": "executive", "Legislation": "legislation",
@@ -168,20 +203,20 @@ with st.sidebar:
 
     filter_type = st.multiselect(
         "Policy Type",
-        ["Executive Order", "Legislation", "Agency Guidance"],
-        default=["Executive Order", "Legislation", "Agency Guidance"]
+        POLICY_TYPES,
+        default=POLICY_TYPES
     )
 
     filter_status = st.multiselect(
         "Status",
-        ["Active", "Proposed", "Revoked", "Passed", "Pending"],
-        default=["Active", "Proposed", "Passed", "Pending"]
+        STATUSES,
+        default=STATUSES
     )
 
     filter_sig = st.multiselect(
         "Significance",
-        ["High", "Medium", "Low"],
-        default=["High", "Medium", "Low"]
+        SIGNIFICANCE_LEVELS,
+        default=SIGNIFICANCE_LEVELS
     )
 
     st.markdown("---")
@@ -242,33 +277,49 @@ with tab1:
         sorted_items = sorted(filtered, key=lambda x: (sig_order.get(x.get("significance", "Low"), 2), x.get("date", "")), reverse=False)
         sorted_items = sorted(sorted_items, key=lambda x: sig_order.get(x.get("significance", "Low"), 2))
 
+        title_style = "font-size:1.05em;font-weight:700;color:#2E4057;text-decoration:none;"
         for item in sorted_items:
             t = item.get("type", "Other")
             cc = card_class(t)
-            title = item.get("title", "Untitled")
-            url = item.get("url", "#")
-            agency = item.get("agency", "Unknown Agency")
-            date = item.get("date", "Date unknown")
-            summary = item.get("summary", "")
+            title = html.escape(str(item.get("title", "Untitled")))
+            agency = html.escape(str(item.get("agency", "Unknown Agency")))
+            date = html.escape(str(item.get("date", "Date unknown")))
+            summary = html.escape(str(item.get("summary", "")))
             status = item.get("status", "Unknown")
             sig = item.get("significance", "Medium")
+            sources = item.get("sources", [])
+            rejected = item.get("rejected_urls", [])
 
-            st.markdown(f"""
-            <div class="policy-card {cc}">
-                <div>
-                    {type_badge(t)}
-                    {status_badge(status)}
-                    {sig_badge(sig)}
-                </div>
-                <div style="margin-top:10px">
-                    <a href="{url}" target="_blank" style="font-size:1.05em;font-weight:700;color:#2E4057;text-decoration:none;">
-                        {title} ↗
-                    </a>
-                </div>
-                <div class="meta-text">🏛️ {agency} &nbsp;|&nbsp; 📅 {date}</div>
-                <div class="summary-text">{summary}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            if sources:
+                href = html.escape(sources[0]["url"], quote=True)
+                title_html = f'<a href="{href}" target="_blank" style="{title_style}">{title} ↗</a>'
+                links = " &nbsp;|&nbsp; ".join(
+                    f'<a href="{html.escape(s["url"], quote=True)}" target="_blank">'
+                    f'{html.escape(s.get("title") or s["url"])}</a> ({s["source_type"]})'
+                    for s in sources
+                )
+                sources_html = f'<div class="source-list">Sources: {links}</div>'
+            else:
+                title_html = f'<span style="{title_style}">{title}</span>'
+                sources_html = ""
+
+            rejected_html = ""
+            if rejected:
+                rejected_html = (
+                    f'<div class="rejected-note">{len(rejected)} model-supplied URL(s) discarded '
+                    f'because they did not appear in the search results.</div>'
+                )
+
+            st.markdown(
+                f'<div class="policy-card {cc}">'
+                f'<div>{type_badge(t)} {status_badge(status)} {sig_badge(sig)} {source_badge(item)}</div>'
+                f'<div style="margin-top:10px">{title_html}</div>'
+                f'<div class="meta-text">🏛️ {agency} &nbsp;|&nbsp; 📅 {date}</div>'
+                f'<div class="summary-text">{summary}</div>'
+                f'{sources_html}{rejected_html}'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
 # ════════════════════════════════════════════════════════
 # TAB 2: SUMMARY VIEW
@@ -319,7 +370,9 @@ with tab2:
     st.plotly_chart(fig3, use_container_width=True)
 
     st.markdown("#### Full Data Table")
-    display_df = df[["title", "type", "date", "status", "agency", "significance"]].copy()
+    display_df = df[["title", "type", "date", "status", "agency", "significance",
+                     "verification", "source_type"]].copy()
+    display_df["source_type"] = display_df["source_type"].fillna("N/A")
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 # ════════════════════════════════════════════════════════
@@ -329,12 +382,18 @@ with tab3:
     st.markdown("### Regulatory Landscape Report")
     st.markdown("Structured summary of current US federal AI policy activity, aligned with NIST AI RMF GOVERN function.")
 
+    report_items = [i for i in data if i.get("verification") == VERIFIED]
+    excluded_count = len(data) - len(report_items)
+    if excluded_count:
+        st.info(f"{excluded_count} {UNVERIFIED.lower()} item(s) excluded from this report because "
+                f"no source URL from the web search results supports them.")
+
     now = datetime.now().strftime("%B %d, %Y")
-    high_items = [i for i in data if i.get("significance") == "High"]
-    active_items = [i for i in data if i.get("status") in ["Active", "Passed"]]
-    eo_items = [i for i in data if i.get("type") == "Executive Order"]
-    leg_items = [i for i in data if i.get("type") == "Legislation"]
-    guid_items = [i for i in data if i.get("type") == "Agency Guidance"]
+    high_items = [i for i in report_items if i.get("significance") == "High"]
+    active_items = [i for i in report_items if i.get("status") in ["Active", "Passed"]]
+    eo_items = [i for i in report_items if i.get("type") == "Executive Order"]
+    leg_items = [i for i in report_items if i.get("type") == "Legislation"]
+    guid_items = [i for i in report_items if i.get("type") == "Agency Guidance"]
 
     report = f"""
 US FEDERAL AI POLICY LANDSCAPE REPORT
@@ -346,7 +405,8 @@ NIST AI RMF:   GOVERN Function, Regulatory Awareness
 
 OVERVIEW
 ─────────────────────────────────────────────────────────
-Total policy items tracked:    {len(data)}
+Verified items in report:      {len(report_items)}
+Unverified items excluded:     {excluded_count}
 High significance items:       {len(high_items)}
 Active or passed items:        {len(active_items)}
 Executive Orders:              {len(eo_items)}
@@ -357,6 +417,9 @@ HIGH SIGNIFICANCE ITEMS
 ─────────────────────────────────────────────────────────
 """
     for item in high_items:
+        source_lines = "\n".join(
+            f"  Source:  {s['url']} ({s['source_type']})" for s in item.get("sources", [])
+        )
         report += f"""
 ► {item.get('title', 'Unknown')}
   Type:    {item.get('type', 'N/A')}
@@ -364,7 +427,7 @@ HIGH SIGNIFICANCE ITEMS
   Date:    {item.get('date', 'N/A')}
   Status:  {item.get('status', 'N/A')}
   Summary: {item.get('summary', 'N/A')}
-  Source:  {item.get('url', 'N/A')}
+{source_lines}
 """
 
     report += f"""
@@ -399,6 +462,12 @@ Organizations deploying AI systems should review high
 significance items and assess applicability to their
 specific use cases and deployment contexts.
 
+SOURCE GROUNDING
+─────────────────────────────────────────────────────────
+Only items supported by at least one URL returned by the
+web search tool are included. Primary sources are .gov or
+.mil sites; all others are secondary.
+
 DISCLAIMER
 ─────────────────────────────────────────────────────────
 This report is generated from live web search results and
@@ -408,7 +477,7 @@ requirements with qualified legal counsel.
 {'='*60}
 """
 
-    st.markdown(f'<div class="report-box">{report}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="report-box">{html.escape(report, quote=False)}</div>', unsafe_allow_html=True)
 
     st.download_button(
         label="⬇️ Download Report (.txt)",
