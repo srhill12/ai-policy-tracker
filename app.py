@@ -87,7 +87,7 @@ Find 12-16 items across these categories:
 - Federal legislation related to AI (passed or pending in Congress)  
 - Agency guidance on AI (from NIST, FTC, EEOC, FDA, DOD, OMB, DHS, or other agencies)
 
-For each item return a JSON object. Respond ONLY with a valid JSON array — no markdown, no backticks, no preamble.
+For each item return a JSON object. Respond ONLY with a valid JSON array: no markdown, no backticks, no preamble.
 
 Each object must have exactly these fields:
 {
@@ -197,11 +197,11 @@ if "policy_data" not in st.session_state:
     st.info("👈 Click **Fetch Latest Updates** in the sidebar to load current AI policy data.")
     st.markdown("""
     **What this tool tracks:**
-    - 🔴 **Executive Orders** — Presidential directives on AI development, safety, and use
-    - 🟢 **Legislation** — Bills and acts passed or pending in Congress
-    - 🟣 **Agency Guidance** — Policy documents from NIST, FTC, FDA, DOD, OMB, and others
+    - 🔴 **Executive Orders**: Presidential directives on AI development, safety, and use
+    - 🟢 **Legislation**: Bills and acts passed or pending in Congress
+    - 🟣 **Agency Guidance**: Policy documents from NIST, FTC, FDA, DOD, OMB, and others
     
-    **Aligned with:** NIST AI RMF GOVERN function — maintaining awareness of the regulatory environment in which AI systems operate.
+    **Aligned with:** NIST AI RMF GOVERN function, maintaining awareness of the regulatory environment in which AI systems operate.
     """)
     st.stop()
 
@@ -222,7 +222,7 @@ col1.metric("Total Items", len(data))
 col2.metric("Showing", len(filtered))
 col3.metric("High Significance", sum(1 for i in data if i.get("significance") == "High"))
 col4.metric("Active / Passed", sum(1 for i in data if i.get("status") in ["Active", "Passed"]))
-col5.metric("Last Updated", fetch_time.split(" at ")[0] if fetch_time else "—")
+col5.metric("Last Updated", fetch_time.split(" at ")[0] if fetch_time else "N/A")
 
 st.markdown(f"*Last fetched: {fetch_time}*")
 st.markdown("---")
@@ -341,8 +341,8 @@ US FEDERAL AI POLICY LANDSCAPE REPORT
 {'='*60}
 Generated:     {now}
 Data Source:   Live web search (Claude + Anthropic Web Search API)
-Scope:         US Federal AI Policy — Executive, Legislative, Regulatory
-NIST AI RMF:   GOVERN Function — Regulatory Awareness
+Scope:         US Federal AI Policy (Executive, Legislative, Regulatory)
+NIST AI RMF:   GOVERN Function, Regulatory Awareness
 
 OVERVIEW
 ─────────────────────────────────────────────────────────
@@ -359,12 +359,12 @@ HIGH SIGNIFICANCE ITEMS
     for item in high_items:
         report += f"""
 ► {item.get('title', 'Unknown')}
-  Type:    {item.get('type', '—')}
-  Agency:  {item.get('agency', '—')}
-  Date:    {item.get('date', '—')}
-  Status:  {item.get('status', '—')}
-  Summary: {item.get('summary', '—')}
-  Source:  {item.get('url', '—')}
+  Type:    {item.get('type', 'N/A')}
+  Agency:  {item.get('agency', 'N/A')}
+  Date:    {item.get('date', 'N/A')}
+  Status:  {item.get('status', 'N/A')}
+  Summary: {item.get('summary', 'N/A')}
+  Source:  {item.get('url', 'N/A')}
 """
 
     report += f"""
@@ -392,9 +392,8 @@ AGENCY GUIDANCE
 NIST AI RMF ALIGNMENT NOTE
 ─────────────────────────────────────────────────────────
 This report supports the GOVERN function of the NIST AI RMF,
-specifically GV-1.1 (organizational policies aligned with
-applicable laws and regulations) and GV-6.1 (regulatory
-requirements are identified and tracked).
+specifically GV-1.1 (legal and regulatory requirements
+involving AI are understood, managed, and documented).
 
 Organizations deploying AI systems should review high
 significance items and assess applicability to their

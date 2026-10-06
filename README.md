@@ -4,15 +4,15 @@ A Streamlit web application that uses live web search to track and summarize cur
 
 ## Overview
 
-Staying current on the AI regulatory landscape is a core responsibility in AI governance. This tool automatically fetches and organizes the latest US federal AI policy activity — executive orders, legislation, and agency guidance — into a structured, filterable dashboard with downloadable governance reports.
+Staying current on the AI regulatory landscape is a core responsibility in AI governance. This tool automatically fetches and organizes the latest US federal AI policy activity (executive orders, legislation, and agency guidance) into a structured, filterable dashboard with downloadable governance reports.
 
 ## Features
 
 - **Live web search** powered by Claude and the Anthropic Web Search API
 - **Three policy categories tracked**:
-  - 🔴 Executive Orders — Presidential directives on AI
-  - 🟢 Legislation — Bills and acts in Congress
-  - 🟣 Agency Guidance — NIST, FTC, FDA, DOD, OMB, and others
+  - 🔴 Executive Orders: Presidential directives on AI
+  - 🟢 Legislation: Bills and acts in Congress
+  - 🟣 Agency Guidance: NIST, FTC, FDA, DOD, OMB, and others
 - **Significance ratings** (High / Medium / Low) for prioritization
 - **Status tracking** (Active, Proposed, Passed, Pending, Revoked)
 - **Filter by type, status, and significance**
@@ -21,7 +21,7 @@ Staying current on the AI regulatory landscape is a core responsibility in AI go
 
 ## Motivation
 
-AI governance practitioners must maintain awareness of the regulatory environment in which AI systems operate. The NIST AI RMF GOVERN function (GV-1.1, GV-6.1) specifically requires organizations to identify and track applicable laws and regulations. This tool operationalizes that requirement.
+AI governance practitioners must maintain awareness of the regulatory environment in which AI systems operate. NIST AI RMF subcategory GV-1.1 calls for legal and regulatory requirements involving AI to be understood, managed, and documented. This tool supports that outcome for US federal policy.
 
 ## Getting Started
 
@@ -61,7 +61,7 @@ python -m streamlit run app.py
 ## Usage
 
 1. Click **Fetch Latest Updates** in the sidebar
-2. Wait ~15–20 seconds while Claude searches the web for current policy developments
+2. Wait about 15 to 20 seconds while Claude searches the web for current policy developments
 3. Browse the **Policy Feed** tab for individual items
 4. Check the **Summary View** tab for charts and the full data table
 5. Download a formal **Governance Report** from the Report tab
@@ -70,9 +70,7 @@ python -m streamlit run app.py
 
 | Function | Sub-category | How this tool helps |
 |----------|-------------|---------------------|
-| GOVERN | GV-1.1 | Identifies applicable laws and regulations |
-| GOVERN | GV-6.1 | Tracks regulatory requirements over time |
-| MAP | MP-2.3 | Contextualizes regulatory risk for AI deployments |
+| GOVERN | GV-1.1 | Surfaces US federal legal and regulatory developments involving AI so they can be understood and documented |
 
 ## Project Structure
 
@@ -87,12 +85,17 @@ ai-policy-tracker/
 
 ## Author
 
-Steven Hill — Purdue University MSAI Candidate | AI Governance, Responsible AI & Adoption Enablement
+Steven Hill | AI Governance Professional | AIGP | ISO/IEC 42001 Lead Auditor
 
 [LinkedIn](https://linkedin.com/in/stevenrhill) | [GitHub](https://github.com/srhill12)
 
 ## References
 
-- NIST (2023). *AI Risk Management Framework (AI RMF 1.0)*
-- Executive Order 14110 on Safe, Secure, and Trustworthy AI (2023)
-- OMB Memorandum M-24-10 on AI Governance (2024)
+- NIST (2023). *Artificial Intelligence Risk Management Framework (AI RMF 1.0)*, NIST AI 100-1. https://doi.org/10.6028/NIST.AI.100-1
+
+### Historical Context (No Longer in Effect)
+
+These instruments shaped earlier federal AI policy and may still appear in search results, but they are not current:
+
+- Executive Order 14110, *Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence* (October 30, 2023). Revoked on January 20, 2025 by Executive Order 14148, *Initial Rescissions of Harmful Executive Orders and Actions*. https://www.federalregister.gov/documents/2025/01/28/2025-01901/initial-rescissions-of-harmful-executive-orders-and-actions
+- OMB Memorandum M-24-10, *Advancing Governance, Innovation, and Risk Management for Agency Use of Artificial Intelligence* (March 2024). Rescinded and replaced on April 3, 2025 by OMB Memorandum M-25-21, *Accelerating Federal Use of AI through Innovation, Governance, and Public Trust*. https://www.whitehouse.gov/wp-content/uploads/2025/02/M-25-21-Accelerating-Federal-Use-of-AI-through-Innovation-Governance-and-Public-Trust.pdf
